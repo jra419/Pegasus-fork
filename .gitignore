@@ -1,6 +1,3 @@
-__pycache__/
-*.py[cod]
-
-.DS_Store
-# *.json
-*.pdf
+docker/
+pycache/
+eval/
