@@ -21,10 +21,10 @@ control SwitchIngress(inout header_t hdr,
 
 	Register<bit<16>, bit<16>>(FLOW_TABLE_SIZE) flow_sig;
 	Register<bit<32>, bit<16>>(FLOW_TABLE_SIZE) last_ts;
-	Register<bit<16>, bit<16>>(FLOW_TABLE_SIZE) pkt_count;
-	Register<bit<32>, bit<16>>(FLOW_TABLE_SIZE) byte_count;
+	Register<bit<16>, bit<16>>(FLOW_TABLE_SIZE) pkt_cnt;
+	Register<bit<32>, bit<16>>(FLOW_TABLE_SIZE) byte_cnt;
 
-	// Stores this packet's signature (hash[31:16])
+	// Stores the cur pkt's signature (hash[31:16]).
 	// Return 1 if the slot held another flow.
 	// Registers are indexed by hash[15:0].
 	RegisterAction<bit<16>, bit<16>, bit<1>>(flow_sig) swap_flow_sig = {
@@ -38,8 +38,8 @@ control SwitchIngress(inout header_t hdr,
 		}
 	};
 
-	// Stores the current timestamp (2^8 ns units).
-	// Return the time since the slot's previous packet.
+	// Stores the current ts (2^8 ns units).
+	// Return the time elapsed since the slot's previous pkt.
 	RegisterAction<bit<32>, bit<16>, bit<32>>(last_ts) swap_last_ts = {
 		void apply(inout bit<32> value, out bit<32> gap) {
 			gap = ig_intr_md.ingress_mac_tstamp[39:8] - value;
@@ -47,37 +47,37 @@ control SwitchIngress(inout header_t hdr,
 		}
 	};
 
-	// New flow: the count restarts at 1 (current packet is index 0).
-	RegisterAction<bit<16>, bit<16>, bit<16>>(pkt_count) restart_pkt_count = {
+	// New flow: count restarts at 1 (cur pkr is index 0).
+	RegisterAction<bit<16>, bit<16>, bit<16>>(pkt_cnt) restart_pkt_cnt = {
 		void apply(inout bit<16> value) {
 			value = 1;
 		}
 	};
 
-	// Same flow: return the count as this packet's index, then increments it (saturating).
-	RegisterAction<bit<16>, bit<16>, bit<16>>(pkt_count) next_pkt_count = {
-		void apply(inout bit<16> value, out bit<16> index) {
-			index = value;
+	// Same flow: return the count as this pkt's index, then increments it (saturating).
+	RegisterAction<bit<16>, bit<16>, bit<16>>(pkt_cnt) next_pkt_cnt = {
+		void apply(inout bit<16> value, out bit<16> idx) {
+			idx = value;
 			value = value |+| 1;
 		}
 	};
 
-	// New flow: the byte count restarts at this packet's length.
-	RegisterAction<bit<32>, bit<16>, bit<32>>(byte_count) restart_byte_count = {
+	// New flow: the byte count restarts at this pkt's length.
+	RegisterAction<bit<32>, bit<16>, bit<32>>(byte_cnt) restart_byte_cnt = {
 		void apply(inout bit<32> value) {
 			value = (bit<32>)hdr.ipv4.total_len;
 		}
 	};
 
-	// Same flow: adds this packet's length (saturating) and returns the new total.
-	RegisterAction<bit<32>, bit<16>, bit<32>>(byte_count) next_byte_count = {
+	// Same flow: adds this pkt's length (saturating) and returns the new total.
+	RegisterAction<bit<32>, bit<16>, bit<32>>(byte_cnt) next_byte_cnt = {
 		void apply(inout bit<32> value, out bit<32> total) {
 			value = value |+| (bit<32>)hdr.ipv4.total_len;
 			total = value;
 		}
 	};
 
-	action compute_flow_hash() {
+	action flow_hash_calc() {
 		ig_md.flow.hash = flow_hash.get({hdr.ipv4.src_addr,
 										 hdr.ipv4.dst_addr,
 										 hdr.ipv4.protocol,
@@ -145,70 +145,70 @@ control SwitchIngress(inout header_t hdr,
 
 	// Writes hidden1.
 	action set_mm1_proto_ts_rel(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                            bit<32> w5, bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9,
-	                            bit<32> w10, bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14,
-	                            bit<32> w15) {
-		ig_md.hidden1.w0 = w0;
-		ig_md.hidden1.w1 = w1;
-		ig_md.hidden1.w2 = w2;
-		ig_md.hidden1.w3 = w3;
-		ig_md.hidden1.w4 = w4;
-		ig_md.hidden1.w5 = w5;
-		ig_md.hidden1.w6 = w6;
-		ig_md.hidden1.w7 = w7;
-		ig_md.hidden1.w8 = w8;
-		ig_md.hidden1.w9 = w9;
-		ig_md.hidden1.w10 = w10;
-		ig_md.hidden1.w11 = w11;
-		ig_md.hidden1.w12 = w12;
-		ig_md.hidden1.w13 = w13;
-		ig_md.hidden1.w14 = w14;
-		ig_md.hidden1.w15 = w15;
+								bit<32> w5, bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9,
+								bit<32> w10, bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14,
+								bit<32> w15) {
+		ig_md.hidden1.w0	= w0;
+		ig_md.hidden1.w1	= w1;
+		ig_md.hidden1.w2	= w2;
+		ig_md.hidden1.w3	= w3;
+		ig_md.hidden1.w4	= w4;
+		ig_md.hidden1.w5	= w5;
+		ig_md.hidden1.w6	= w6;
+		ig_md.hidden1.w7	= w7;
+		ig_md.hidden1.w8	= w8;
+		ig_md.hidden1.w9	= w9;
+		ig_md.hidden1.w10	= w10;
+		ig_md.hidden1.w11	= w11;
+		ig_md.hidden1.w12	= w12;
+		ig_md.hidden1.w13	= w13;
+		ig_md.hidden1.w14	= w14;
+		ig_md.hidden1.w15	= w15;
 	}
 
 	// Writes hidden1_partial.
 	action set_mm1_flags_pkt_idx(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                             bit<32> w5, bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9,
-	                             bit<32> w10, bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14,
-	                             bit<32> w15) {
-		ig_md.hidden1_partial.w0 = w0;
-		ig_md.hidden1_partial.w1 = w1;
-		ig_md.hidden1_partial.w2 = w2;
-		ig_md.hidden1_partial.w3 = w3;
-		ig_md.hidden1_partial.w4 = w4;
-		ig_md.hidden1_partial.w5 = w5;
-		ig_md.hidden1_partial.w6 = w6;
-		ig_md.hidden1_partial.w7 = w7;
-		ig_md.hidden1_partial.w8 = w8;
-		ig_md.hidden1_partial.w9 = w9;
-		ig_md.hidden1_partial.w10 = w10;
-		ig_md.hidden1_partial.w11 = w11;
-		ig_md.hidden1_partial.w12 = w12;
-		ig_md.hidden1_partial.w13 = w13;
-		ig_md.hidden1_partial.w14 = w14;
-		ig_md.hidden1_partial.w15 = w15;
+								 bit<32> w5, bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9,
+								 bit<32> w10, bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14,
+								 bit<32> w15) {
+		ig_md.hidden1_partial.w0	= w0;
+		ig_md.hidden1_partial.w1	= w1;
+		ig_md.hidden1_partial.w2	= w2;
+		ig_md.hidden1_partial.w3	= w3;
+		ig_md.hidden1_partial.w4	= w4;
+		ig_md.hidden1_partial.w5	= w5;
+		ig_md.hidden1_partial.w6	= w6;
+		ig_md.hidden1_partial.w7	= w7;
+		ig_md.hidden1_partial.w8	= w8;
+		ig_md.hidden1_partial.w9	= w9;
+		ig_md.hidden1_partial.w10	= w10;
+		ig_md.hidden1_partial.w11	= w11;
+		ig_md.hidden1_partial.w12	= w12;
+		ig_md.hidden1_partial.w13	= w13;
+		ig_md.hidden1_partial.w14	= w14;
+		ig_md.hidden1_partial.w15	= w15;
 	}
 
 	// Adds into hidden1.
 	action set_mm1_flow_len(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4, bit<32> w5,
-	                        bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9, bit<32> w10,
-	                        bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14, bit<32> w15) {
-		ig_md.hidden1.w0 = w0 + ig_md.hidden1.w0;
-		ig_md.hidden1.w1 = w1 + ig_md.hidden1.w1;
-		ig_md.hidden1.w2 = w2 + ig_md.hidden1.w2;
-		ig_md.hidden1.w3 = w3 + ig_md.hidden1.w3;
-		ig_md.hidden1.w4 = w4 + ig_md.hidden1.w4;
-		ig_md.hidden1.w5 = w5 + ig_md.hidden1.w5;
-		ig_md.hidden1.w6 = w6 + ig_md.hidden1.w6;
-		ig_md.hidden1.w7 = w7 + ig_md.hidden1.w7;
-		ig_md.hidden1.w8 = w8 + ig_md.hidden1.w8;
-		ig_md.hidden1.w9 = w9 + ig_md.hidden1.w9;
-		ig_md.hidden1.w10 = w10 + ig_md.hidden1.w10;
-		ig_md.hidden1.w11 = w11 + ig_md.hidden1.w11;
-		ig_md.hidden1.w12 = w12 + ig_md.hidden1.w12;
-		ig_md.hidden1.w13 = w13 + ig_md.hidden1.w13;
-		ig_md.hidden1.w14 = w14 + ig_md.hidden1.w14;
-		ig_md.hidden1.w15 = w15 + ig_md.hidden1.w15;
+							bit<32> w6, bit<32> w7, bit<32> w8, bit<32> w9, bit<32> w10,
+							bit<32> w11, bit<32> w12, bit<32> w13, bit<32> w14, bit<32> w15) {
+		ig_md.hidden1.w0	= w0 + ig_md.hidden1.w0;
+		ig_md.hidden1.w1	= w1 + ig_md.hidden1.w1;
+		ig_md.hidden1.w2 	= w2 + ig_md.hidden1.w2;
+		ig_md.hidden1.w3 	= w3 + ig_md.hidden1.w3;
+		ig_md.hidden1.w4 	= w4 + ig_md.hidden1.w4;
+		ig_md.hidden1.w5 	= w5 + ig_md.hidden1.w5;
+		ig_md.hidden1.w6 	= w6 + ig_md.hidden1.w6;
+		ig_md.hidden1.w7 	= w7 + ig_md.hidden1.w7;
+		ig_md.hidden1.w8 	= w8 + ig_md.hidden1.w8;
+		ig_md.hidden1.w9 	= w9 + ig_md.hidden1.w9;
+		ig_md.hidden1.w10	= w10 + ig_md.hidden1.w10;
+		ig_md.hidden1.w11 	= w11 + ig_md.hidden1.w11;
+		ig_md.hidden1.w12 	= w12 + ig_md.hidden1.w12;
+		ig_md.hidden1.w13 	= w13 + ig_md.hidden1.w13;
+		ig_md.hidden1.w14 	= w14 + ig_md.hidden1.w14;
+		ig_md.hidden1.w15 	= w15 + ig_md.hidden1.w15;
 	}
 
 	table mm1_proto_ts_rel {
@@ -227,8 +227,8 @@ control SwitchIngress(inout header_t hdr,
 
 	table mm1_flags_pkt_idx {
 		key = {
-			ig_md.feat.tcp_flags    : ternary;
-			ig_md.feat.packet_index : ternary;
+			ig_md.feat.tcp_flags	: ternary;
+			ig_md.feat.packet_idx : ternary;
 		}
 		actions = {
 			set_mm1_flags_pkt_idx;
@@ -261,7 +261,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Writes hidden2.
 	action set_mm2_direct(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4, bit<32> w5,
-	                      bit<32> w6, bit<32> w7) {
+						  bit<32> w6, bit<32> w7) {
 		ig_md.hidden2.w0 = w0;
 		ig_md.hidden2.w1 = w1;
 		ig_md.hidden2.w2 = w2;
@@ -542,7 +542,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Adds into hidden2.
 	action set_mm2_group_1_3(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                         bit<32> w5, bit<32> w6, bit<32> w7) {
+							 bit<32> w5, bit<32> w6, bit<32> w7) {
 		ig_md.hidden2.w0 = w0 + ig_md.hidden2.w0;
 		ig_md.hidden2.w1 = w1 + ig_md.hidden2.w1;
 		ig_md.hidden2.w2 = w2 + ig_md.hidden2.w2;
@@ -555,7 +555,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Writes hidden2_partial.
 	action set_mm2_group_4_6(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                         bit<32> w5, bit<32> w6, bit<32> w7) {
+							 bit<32> w5, bit<32> w6, bit<32> w7) {
 		ig_md.hidden2_partial.w0 = w0;
 		ig_md.hidden2_partial.w1 = w1;
 		ig_md.hidden2_partial.w2 = w2;
@@ -568,7 +568,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Adds into hidden2.
 	action set_mm2_group_7_9(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                         bit<32> w5, bit<32> w6, bit<32> w7) {
+							 bit<32> w5, bit<32> w6, bit<32> w7) {
 		ig_md.hidden2.w0 = w0 + ig_md.hidden2.w0;
 		ig_md.hidden2.w1 = w1 + ig_md.hidden2.w1;
 		ig_md.hidden2.w2 = w2 + ig_md.hidden2.w2;
@@ -581,7 +581,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Adds into hidden2_partial.
 	action set_mm2_group_10_12(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                           bit<32> w5, bit<32> w6, bit<32> w7) {
+							   bit<32> w5, bit<32> w6, bit<32> w7) {
 		ig_md.hidden2_partial.w0 = w0 + ig_md.hidden2_partial.w0;
 		ig_md.hidden2_partial.w1 = w1 + ig_md.hidden2_partial.w1;
 		ig_md.hidden2_partial.w2 = w2 + ig_md.hidden2_partial.w2;
@@ -594,7 +594,7 @@ control SwitchIngress(inout header_t hdr,
 
 	// Adds into hidden2.
 	action set_mm2_group_13_15(bit<32> w0, bit<32> w1, bit<32> w2, bit<32> w3, bit<32> w4,
-	                           bit<32> w5, bit<32> w6, bit<32> w7) {
+							   bit<32> w5, bit<32> w6, bit<32> w7) {
 		ig_md.hidden2.w0 = w0 + ig_md.hidden2.w0;
 		ig_md.hidden2.w1 = w1 + ig_md.hidden2.w1;
 		ig_md.hidden2.w2 = w2 + ig_md.hidden2.w2;
@@ -847,23 +847,23 @@ control SwitchIngress(inout header_t hdr,
 	}
 
 	apply {
-		compute_flow_hash();
+		flow_hash_calc();
 
-		ig_md.flow.other_flow   = swap_flow_sig.execute(ig_md.flow.hash[15:0]);
-		ig_md.flow.gap          = swap_last_ts.execute(ig_md.flow.hash[15:0]);
+		ig_md.flow.other_flow	= swap_flow_sig.execute(ig_md.flow.hash[15:0]);
+		ig_md.flow.gap			= swap_last_ts.execute(ig_md.flow.hash[15:0]);
 
 		// New flow: another flow held the slot, or the gap reached the idle timeout.
 		if (ig_md.flow.other_flow == 1 || ig_md.flow.gap[31:20] != 0) {
-			restart_pkt_count.execute(ig_md.flow.hash[15:0]);
-			restart_byte_count.execute(ig_md.flow.hash[15:0]);
+			restart_pkt_cnt.execute(ig_md.flow.hash[15:0]);
+			restart_byte_cnt.execute(ig_md.flow.hash[15:0]);
 
-			ig_md.feat.ts_rel       = 0;
-			ig_md.feat.packet_index = 0;
-			ig_md.feat.flow_len     = (bit<32>)hdr.ipv4.total_len;
+			ig_md.feat.ts_rel		= 0;
+			ig_md.feat.packet_idx	= 0;
+			ig_md.feat.flow_len		= (bit<32>)hdr.ipv4.total_len;
 		} else {
-			ig_md.feat.packet_index = next_pkt_count.execute(ig_md.flow.hash[15:0]);
-			ig_md.feat.flow_len     = next_byte_count.execute(ig_md.flow.hash[15:0]);
-			ig_md.feat.ts_rel       = ig_md.flow.gap;
+			ig_md.feat.packet_idx	= next_pkt_cnt.execute(ig_md.flow.hash[15:0]);
+			ig_md.feat.flow_len		= next_byte_cnt.execute(ig_md.flow.hash[15:0]);
+			ig_md.feat.ts_rel		= ig_md.flow.gap;
 		}
 
 		// MM1
@@ -871,22 +871,22 @@ control SwitchIngress(inout header_t hdr,
 		mm1_flags_pkt_idx.apply();
 		mm1_flow_len.apply();
 
-		ig_md.hidden1.w0 = ig_md.hidden1.w0 + ig_md.hidden1_partial.w0;
-		ig_md.hidden1.w1 = ig_md.hidden1.w1 + ig_md.hidden1_partial.w1;
-		ig_md.hidden1.w2 = ig_md.hidden1.w2 + ig_md.hidden1_partial.w2;
-		ig_md.hidden1.w3 = ig_md.hidden1.w3 + ig_md.hidden1_partial.w3;
-		ig_md.hidden1.w4 = ig_md.hidden1.w4 + ig_md.hidden1_partial.w4;
-		ig_md.hidden1.w5 = ig_md.hidden1.w5 + ig_md.hidden1_partial.w5;
-		ig_md.hidden1.w6 = ig_md.hidden1.w6 + ig_md.hidden1_partial.w6;
-		ig_md.hidden1.w7 = ig_md.hidden1.w7 + ig_md.hidden1_partial.w7;
-		ig_md.hidden1.w8 = ig_md.hidden1.w8 + ig_md.hidden1_partial.w8;
-		ig_md.hidden1.w9 = ig_md.hidden1.w9 + ig_md.hidden1_partial.w9;
-		ig_md.hidden1.w10 = ig_md.hidden1.w10 + ig_md.hidden1_partial.w10;
-		ig_md.hidden1.w11 = ig_md.hidden1.w11 + ig_md.hidden1_partial.w11;
-		ig_md.hidden1.w12 = ig_md.hidden1.w12 + ig_md.hidden1_partial.w12;
-		ig_md.hidden1.w13 = ig_md.hidden1.w13 + ig_md.hidden1_partial.w13;
-		ig_md.hidden1.w14 = ig_md.hidden1.w14 + ig_md.hidden1_partial.w14;
-		ig_md.hidden1.w15 = ig_md.hidden1.w15 + ig_md.hidden1_partial.w15;
+		ig_md.hidden1.w0	= ig_md.hidden1.w0 + ig_md.hidden1_partial.w0;
+		ig_md.hidden1.w1 	= ig_md.hidden1.w1 + ig_md.hidden1_partial.w1;
+		ig_md.hidden1.w2 	= ig_md.hidden1.w2 + ig_md.hidden1_partial.w2;
+		ig_md.hidden1.w3 	= ig_md.hidden1.w3 + ig_md.hidden1_partial.w3;
+		ig_md.hidden1.w4 	= ig_md.hidden1.w4 + ig_md.hidden1_partial.w4;
+		ig_md.hidden1.w5 	= ig_md.hidden1.w5 + ig_md.hidden1_partial.w5;
+		ig_md.hidden1.w6 	= ig_md.hidden1.w6 + ig_md.hidden1_partial.w6;
+		ig_md.hidden1.w7 	= ig_md.hidden1.w7 + ig_md.hidden1_partial.w7;
+		ig_md.hidden1.w8 	= ig_md.hidden1.w8 + ig_md.hidden1_partial.w8;
+		ig_md.hidden1.w9 	= ig_md.hidden1.w9 + ig_md.hidden1_partial.w9;
+		ig_md.hidden1.w10	= ig_md.hidden1.w10 + ig_md.hidden1_partial.w10;
+		ig_md.hidden1.w11 	= ig_md.hidden1.w11 + ig_md.hidden1_partial.w11;
+		ig_md.hidden1.w12 	= ig_md.hidden1.w12 + ig_md.hidden1_partial.w12;
+		ig_md.hidden1.w13 	= ig_md.hidden1.w13 + ig_md.hidden1_partial.w13;
+		ig_md.hidden1.w14 	= ig_md.hidden1.w14 + ig_md.hidden1_partial.w14;
+		ig_md.hidden1.w15 	= ig_md.hidden1.w15 + ig_md.hidden1_partial.w15;
 
 		// MM2
 		mm2_direct.apply();
@@ -943,8 +943,8 @@ control SwitchIngress(inout header_t hdr,
 
 		hdr.output.setValid();
 
-		ig_tm_md.ucast_egress_port = OUTPUT_PORT;
-		ig_tm_md.bypass_egress = 1;
+		ig_tm_md.ucast_egress_port	= OUTPUT_PORT;
+		ig_tm_md.bypass_egress		= 1;
 
 		hdr.ethernet.dst_addr = 0;
 	}

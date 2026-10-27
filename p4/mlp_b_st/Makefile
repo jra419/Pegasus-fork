@@ -1,4 +1,4 @@
-PROG		   := mlp-b-st.p4
+PROG		   := mlp_b_st.p4
 ARCH		   := P4_ARCHITECTURE=t2na
 VERSION		   := P4_VERSION=p4_16
 P4C			   := $(SDE_INSTALL)/bin/bf-p4c

@@ -8,33 +8,33 @@ typedef bit<12> vlan_id_t;
 
 
 typedef bit<16> ether_type_t;
-const ether_type_t ETHERTYPE_IPV4 = 16w0x0800;
-const ether_type_t ETHERTYPE_ARP = 16w0x0806;
-const ether_type_t ETHERTYPE_IPV6 = 16w0x86dd;
-const ether_type_t ETHERTYPE_VLAN = 16w0x8100;
+const ether_type_t ETHERTYPE_IPV4	= 16w0x0800;
+const ether_type_t ETHERTYPE_ARP	= 16w0x0806;
+const ether_type_t ETHERTYPE_IPV6	= 16w0x86dd;
+const ether_type_t ETHERTYPE_VLAN	= 16w0x8100;
 
-typedef bit<8> ip_protocol_t;
-const ip_protocol_t IP_PROTOCOLS_ICMP = 1;
-const ip_protocol_t IP_PROTOCOLS_TCP = 6;
-const ip_protocol_t IP_PROTOCOLS_UDP = 17;
+typedef bit<8> ip_proto_t;
+const ip_proto_t IP_PROTO_ICMP	= 1;
+const ip_proto_t IP_PROTO_TCP	= 6;
+const ip_proto_t IP_PROTO_UDP	= 17;
 
 header ethernet_h {
-    mac_addr_t dst_addr;
-    mac_addr_t src_addr;
-    bit<16> ether_type;
+    mac_addr_t	dst_addr;
+    mac_addr_t	src_addr;
+    bit<16>		ether_type;
 }
 
 header ipv4_h {
-    bit<4> version;
-    bit<4> ihl;
-    bit<8> diffserv;
-    bit<16> total_len;
-    bit<16> identification;
-    bit<3> flags;
-    bit<13> frag_offset;
-    bit<8> ttl;
-    bit<8> protocol;
-    bit<16> hdr_checksum;
+    bit<4>		version;
+    bit<4>		ihl;
+    bit<8>		diffserv;
+    bit<16> 	total_len;
+    bit<16> 	identification;
+    bit<3>		flags;
+    bit<13> 	frag_offset;
+    bit<8>		ttl;
+    bit<8>		protocol;
+    bit<16>		hdr_checksum;
     ipv4_addr_t src_addr;
     ipv4_addr_t dst_addr;
 }
@@ -59,7 +59,8 @@ header udp_h {
     bit<16> checksum;
 }
 
-// Hidden-layer values as 32-bit words, each holding two 13-bit lanes (word j = values 2j, 2j+1).
+// Hidden-layer values as 32-bit words, each holding two 13-bit lanes.
+// (word j = values 2j, 2j+1).
 struct words16_t {
     bit<32> w0;
     bit<32> w1;
@@ -123,15 +124,16 @@ struct logits_t {
 
 header output_h {
     logits_t logits;
-    bit<8>   confident;     // 1 if the top logit beats the second by at least the threshold
+	// 1 if the top logit beats the second by at least the threshold.
+    bit<8>   confident;
 }
 
 struct header_t {
-    ethernet_h ethernet;//112
-    ipv4_h ipv4;//160
-    tcp_h tcp;//160
-    udp_h udp;//64
-    output_h output;//264
+    ethernet_h ethernet;	// 112
+    ipv4_h ipv4;			// 160
+    tcp_h tcp;				// 160
+    udp_h udp;				// 64
+    output_h output;		// 264
 }
 
 // MM1 input features computed on the switch, exactly as models/mlp_b/mlp_b_st/pcap_features.py
@@ -139,7 +141,7 @@ struct header_t {
 struct features_t {
     bit<8>  tcp_flags;      // 0 if not TCP
     bit<32> ts_rel;         // time since the flow's previous packet, 2^8 ns units; 0 if new
-    bit<16> packet_index;   // position in the flow, saturating
+    bit<16> packet_idx;   // position in the flow, saturating
     bit<32> flow_len;       // sum of the flow's IP total lengths, this packet included, saturating
 }
 
@@ -158,7 +160,7 @@ struct empty_header_t {}
 struct empty_metadata_t {}
 
 // Confidence check scratch: t_j = logit_j + threshold, d_ij = logit_i - t_j.
-struct confidence_t {
+struct conf_t {
     bit<32> t0;
     bit<32> t1;
     bit<32> t2;
@@ -179,7 +181,7 @@ struct metadata_t {
     words8_t        hidden2;            // MM2 output
     words8_t        hidden2_partial;    // MM2 partial sum, added into hidden2
     logits_t        logits_partial;     // MM3 partial sum, added into hdr.output.logits
-    confidence_t    conf;               // confidence check scratch
+    conf_t			conf;               // confidence check scratch
 }
 
 #endif /* _HEADERS_ */
