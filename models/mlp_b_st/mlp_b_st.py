@@ -6,6 +6,10 @@ TREE_DEPTH = 4
 NUM_SPLITS = 2 ** TREE_DEPTH - 1
 NUM_LEAVES = 2 ** TREE_DEPTH
 
+# A training split answers "yes" only when its value exceeds the threshold by more than this;
+# mlp_b_st_lut_convert adds it to the thresholds, so LutLayer's plain "> T" gives the same answers.
+SPLIT_MARGIN = 0.0001
+
 HIDDEN_SIZE_1 = 32
 HIDDEN_SIZE_2 = 16
 
@@ -33,7 +37,7 @@ class TreeQuantizedLayer(nn.Module):
     def forward(self, x):
         x           = x.view(-1, self.num_codeblocks, self.codeblock_dim)
         x           = torch.einsum('bcd,cds->bcs', x, self.S)
-        x           = x - self.T - 0.0001
+        x           = x - self.T - SPLIT_MARGIN
         x           = straight_through(torch.sign(x), torch.tanh(x))
         x           = torch.einsum('bcs,sk->bck', x, self.H)
         one_hot     = F.one_hot(torch.argmax(x, dim=-1), num_classes=NUM_LEAVES).float()

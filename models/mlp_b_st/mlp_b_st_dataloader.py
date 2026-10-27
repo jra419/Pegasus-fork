@@ -7,30 +7,29 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, Subset
 
-from .pcap_features import FEAT_COLS, iter_pkt_rows, read_labels
+from .pcap_feats import FEAT_COLS, iter_pkt_rows, read_labels
 
 VAL_RATIO        = 0.1
-FLOW_KEY_COLS    = ["ip_src", "ip_dst", "ip_proto", "port_src", "port_dst"]
+FLOW_KEY_COLS    = ['ip_src', 'ip_dst', 'ip_proto', 'port_src', 'port_dst']
 
 def default_labels_path(pcap_path):
     pcap_path = Path(pcap_path)
 
-    return pcap_path.with_name(f"{pcap_path.stem}-labels.csv")
+    return pcap_path.with_name(f'{pcap_path.stem}-labels.csv')
 
 def _load_pcap(pcap_path, labels_path):
     labels_path = Path(labels_path) if labels_path else default_labels_path(pcap_path)
 
     if not labels_path.is_file():
-        raise FileNotFoundError(f"No labels for {pcap_path}: {labels_path} does not exist "
-                                "(pass a labels file explicitly)")
+        raise FileNotFoundError(f'Error: {labels_path} does not exist ')
 
-    feats       = array("q")
-    labels      = array("q")
+    feats       = array('q')
+    labels      = array('q')
     flow_keys   = []
 
     for row in iter_pkt_rows(pcap_path, read_labels(labels_path)):
         feats.extend(row[column] for column in FEAT_COLS)
-        labels.append(row["label"])
+        labels.append(row['label'])
         flow_keys.append(tuple(row[column] for column in FLOW_KEY_COLS))
 
     return (np.frombuffer(feats, dtype=np.int64).reshape(-1, len(FEAT_COLS)),
@@ -38,18 +37,18 @@ def _load_pcap(pcap_path, labels_path):
             flow_keys)
 
 def load_pkts(path, labels_path=None, with_flow_keys=False):
-    if Path(path).suffix.lower() in {'.pcap', '.pcapng'}:
+    if Path(path).suffix.lower() in {'.pcap'}:
         feats, labels, flow_keys = _load_pcap(path, labels_path)
     else:
-        columns     = FEAT_COLS + ["label"] + (FLOW_KEY_COLS if with_flow_keys else [])
+        columns     = FEAT_COLS + ['label'] + (FLOW_KEY_COLS if with_flow_keys else [])
         data        = pd.read_csv(path, usecols=list(dict.fromkeys(columns)))
         feats    = data[FEAT_COLS].to_numpy(dtype=np.int64)
-        labels      = data["label"].to_numpy(dtype=np.int64)
+        labels      = data['label'].to_numpy(dtype=np.int64)
         flow_keys   = (list(data[FLOW_KEY_COLS].itertuples(index=False, name=None))
                        if with_flow_keys else None)
 
     if (labels < 0).any():
-        raise ValueError(f"{path} has unlabeled packets (label < 0)")
+        raise ValueError(f'Error: {path} has unlabeled packets (label < 0)')
 
     if with_flow_keys:
         return feats, labels, flow_keys

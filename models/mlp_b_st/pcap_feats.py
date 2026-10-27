@@ -31,7 +31,7 @@ PURGE_INTERVAL  = 100_000
 
 def flow_key_bytes(ip_src, ip_dst, ip_proto, port_src, port_dst):
     return (socket.inet_aton(ip_src) + socket.inet_aton(ip_dst)
-            + struct.pack("!BHH", ip_proto, port_src, port_dst))
+            + struct.pack('!BHH', ip_proto, port_src, port_dst))
 
 class HashedFlowTable:
     def __init__(self, size, timeout_units):
@@ -126,7 +126,7 @@ def read_labels(path):
             except ValueError:
                 if line_number == 0:
                     continue
-                raise ValueError(f"{path}:{line_number + 1}: not an int label: {line!r}")
+                raise ValueError(f'{path}:{line_number + 1}: not an int label: {line!r}')
 
     return labels
 
@@ -151,8 +151,8 @@ def iter_pkt_rows(pcap_path, labels=None, idle_timeout=DEFAULT_IDLE_TIMEOUT,
                 continue
 
             if labels is not None and frame_idx >= len(labels):
-                raise ValueError("Length mismatch with PCAP. "
-                                 f"Labels file length has {len(labels)} labels.")
+                raise ValueError('Length mismatch with PCAP. '
+                                 f'Labels file length has {len(labels)} labels.')
 
             ts_ns       = int(Decimal(str(pkt.time)) * NS_PER_S)
             ip          = pkt[IP]
@@ -173,24 +173,24 @@ def iter_pkt_rows(pcap_path, labels=None, idle_timeout=DEFAULT_IDLE_TIMEOUT,
                     table.update((ip.src, ip.dst, ip_proto, port_src, port_dst),
                                  ts_ns >> time_shift, pkt_len)
 
-            yield {"frame_index":  frame_idx,
-                   "ts_abs":       ts_ns,
-                   "ip_src":       ip.src,
-                   "ip_dst":       ip.dst,
-                   "ip_proto":     ip_proto,
-                   "port_src":     port_src,
-                   "port_dst":     port_dst,
-                   "tcp_flags":    tcp_flags,
-                   "flow_id":      flow_id,
-                   "flow_slot":    slot,
-                   "packet_index": pkt_idx,
-                   "pkt_len":      pkt_len,
-                   "flow_len":     flow_len,
-                   "ts_rel":       ts_rel,
-                   "label":        labels[frame_idx] if labels is not None else -1}
+            yield {'frame_index':  frame_idx,
+                   'ts_abs':       ts_ns,
+                   'ip_src':       ip.src,
+                   'ip_dst':       ip.dst,
+                   'ip_proto':     ip_proto,
+                   'port_src':     port_src,
+                   'port_dst':     port_dst,
+                   'tcp_flags':    tcp_flags,
+                   'flow_id':      flow_id,
+                   'flow_slot':    slot,
+                   'packet_index': pkt_idx,
+                   'pkt_len':      pkt_len,
+                   'flow_len':     flow_len,
+                   'ts_rel':       ts_rel,
+                   'label':        labels[frame_idx] if labels is not None else -1}
 
     if labels is not None and max_frames is None and len(labels) != frame_count:
-        print(f"WARNING: {len(labels)} labels for {frame_count} pcap frames", file=sys.stderr)
+        print(f'WARNING: {len(labels)} labels for {frame_count} pcap frames', file=sys.stderr)
 
 def write_csv(pcap_path, csv_path, labels_path=None, idle_timeout=DEFAULT_IDLE_TIMEOUT,
               max_frames=None, flow_table_size=DEFAULT_FLOW_TABLE_SIZE,
@@ -198,7 +198,7 @@ def write_csv(pcap_path, csv_path, labels_path=None, idle_timeout=DEFAULT_IDLE_T
     labels  = read_labels(labels_path) if labels_path else None
     cnt     = 0
 
-    with open(csv_path, "w", newline="") as f:
+    with open(csv_path, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLS)
         writer.writeheader()
 
@@ -208,33 +208,32 @@ def write_csv(pcap_path, csv_path, labels_path=None, idle_timeout=DEFAULT_IDLE_T
             cnt += 1
 
             if cnt % 500_000 == 0:
-                print(f"  {cnt} packets", file=sys.stderr)
+                print(f'  {cnt} packets', file=sys.stderr)
 
     return cnt
 
 def main():
-    parser = argparse.ArgumentParser(description="Per-packet MLP-B-ST feats from a pcap.")
+    parser = argparse.ArgumentParser()
 
-    parser.add_argument("pcap", type=Path)
-    parser.add_argument("output_csv", type=Path)
-    parser.add_argument("--labels", type=Path)
-    parser.add_argument("--idle_timeout", type=int, default=DEFAULT_IDLE_TIMEOUT,
-                        help="Idle gap that ends a flow, in 2**time_shift ns units (a power of "
-                             "two to match the switch)")
-    parser.add_argument("--flow_table_size", type=int, default=DEFAULT_FLOW_TABLE_SIZE,
-                        help="Hashed flow slots as on the switch (power of two, <= 65536); "
-                             "0 for an unlimited table")
-    parser.add_argument("--time_shift", type=int, default=DEFAULT_TIME_SHIFT,
-                        help="Timestamps are kept in units of 2**time_shift ns")
-    parser.add_argument("--max_frames", type=int,
-                        help="Only read the first N pcap frames (for quick tests)")
+    parser.add_argument('pcap', type=Path)
+    parser.add_argument('output_csv', type=Path)
+    parser.add_argument('--labels', type=Path)
+    parser.add_argument('--idle_timeout', type=int, default=DEFAULT_IDLE_TIMEOUT,
+                        help='Idle gap that ends a flow, in 2**time_shift ns units')
+    parser.add_argument('--flow_table_size', type=int, default=DEFAULT_FLOW_TABLE_SIZE,
+                        help='Hashed flow slots as on the switch (power of two, <= 65536); '
+                             '0 for an unlimited table')
+    parser.add_argument('--time_shift', type=int, default=DEFAULT_TIME_SHIFT,
+                        help='Timestamps are kept in units of 2**time_shift ns')
+    parser.add_argument('--max_frames', type=int,
+                        help='Only read the first N pcap frames (for quick tests)')
 
     args = parser.parse_args()
 
     count = write_csv(args.pcap, args.output_csv, args.labels, args.idle_timeout,
                       args.max_frames, args.flow_table_size, args.time_shift)
 
-    print(f"Wrote {count} IPv4 packets to {args.output_csv}")
+    print(f'Wrote {count} IPv4 packets to {args.output_csv}')
 
 
 if __name__ == "__main__":
